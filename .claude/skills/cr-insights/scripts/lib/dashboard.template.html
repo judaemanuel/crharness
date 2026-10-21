@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>crharness — dashboard</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --hover: rgba(11,11,11,.05); --empty: #f0efec;
+  --focus: #2a78d6;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --hover: rgba(255,255,255,.07); --empty: #232321; --focus: #3987e5; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font-size: 14px; line-height: 1.45; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 20px 56px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0 0 2px; }
+.sub { color: var(--ink2); margin: 0 0 18px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin: 0 0 18px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.filters label { display: flex; flex-direction: column; font-size: 12px; color: var(--ink2); gap: 3px; }
+.filters select, .filters button { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 5px 8px; min-width: 130px; }
+.filters button { cursor: pointer; min-width: 0; }
+.filters .count { margin-left: auto; color: var(--ink2); font-size: 13px; }
+select:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.kpis { display: grid; grid-template-columns: 1.4fr repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.tile .l { color: var(--ink2); font-size: 12px; }
+.tile .v { font-size: 28px; font-weight: 600; margin-top: 2px; }
+.tile.hero .v { font-size: 56px; line-height: 1.05; }
+.tile .d { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.card .cs { color: var(--ink2); font-size: 12px; margin: 2px 0 10px; }
+.note { color: var(--ink2); font-size: 13px; padding: 10px 12px; background: var(--page); border-radius: 8px; border: 1px dashed var(--axis); }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { font-family: inherit; fill: var(--ink2); font-size: 12px; }
+svg text.val { fill: var(--ink); }
+svg text.mut { fill: var(--muted); font-size: 11px; }
+svg .hit { fill: transparent; }
+svg g.mark:hover .hit, svg g.mark:focus .hit { fill: var(--hover); }
+svg g.mark:focus { outline: none; }
+svg g.mark:focus-visible .hit { stroke: var(--focus); stroke-width: 2; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 8px; font-size: 12px; color: var(--ink2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; color: var(--ink2); font-weight: 500; font-size: 12px; padding: 5px 8px; border-bottom: 1px solid var(--axis); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+details.tbl { margin-top: 10px; }
+details.tbl summary { cursor: pointer; color: var(--ink2); font-size: 12px; }
+details.tbl table { margin-top: 8px; }
+ul.ins { margin: 0; padding-left: 18px; } ul.ins li { margin: 0 0 8px; }
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--axis); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); max-width: 300px; display: none; }
+#tip .tv { font-size: 15px; font-weight: 600; }
+#tip .tt { color: var(--ink2); margin-bottom: 2px; }
+#tip .tr { color: var(--ink2); display: flex; gap: 8px; justify-content: space-between; }
+#tip .tr b { color: var(--ink); font-weight: 600; }
+footer { color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<!--__NAV__-->
+<main>
+  <h1>crharness — dashboard</h1>
+  <p class="sub" id="sub"></p>
+  <div class="filters" id="filters"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid" id="cards"></div>
+  <footer id="foot"></footer>
+</main>
+<div id="tip" role="tooltip"></div>
+<script type="application/json" id="data">/*__DATA__*/</script>
+<script>
+/*__AGGREGATE__*/
+</script>
+<script>
+(function () {
+  'use strict';
+  var D = JSON.parse(document.getElementById('data').textContent);
+  var SEV = ['critical', 'high', 'medium', 'low'];
+  var SEVPT = { critical: 'crítica', high: 'alta', medium: 'média', low: 'baixa' };
+  var NS = 'http://www.w3.org/2000/svg';
+  var PAL = {
+    light: { series: '#2a78d6', sev: { critical: '#0d366b', high: '#1c5cab', medium: '#3987e5', low: '#86b6ef' }, ramp: ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#1c5cab', '#0d366b'] },
+    dark: { series: '#3987e5', sev: { critical: '#cde2fb', high: '#86b6ef', medium: '#2a78d6', low: '#184f95' }, ramp: ['#184f95', '#1c5cab', '#256abf', '#3987e5', '#6da7ec', '#9ec5f4', '#cde2fb'] }
+  };
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  var pal = function () { return mq && mq.matches ? PAL.dark : PAL.light; };
+  var state = { service: '', base: '', jira: '', severity: '', category: '', layer: '', scope: '', status: '' };
+
+  // ---------- DOM helpers (all text goes through textContent) ----------
+  function h(tag, attrs, text) { var e = document.createElement(tag); put(e, attrs, text); return e; }
+  function s(tag, attrs, text) { var e = document.createElementNS(NS, tag); put(e, attrs, text); return e; }
+  function put(e, attrs, text) {
+    if (attrs) Object.keys(attrs).forEach(function (k) { if (k === 'class') e.setAttribute('class', attrs[k]); else e.setAttribute(k, attrs[k]); });
+    if (text !== undefined && text !== null) e.textContent = text;
+  }
+  function lum(hex) {
+    var c = [1, 3, 5].map(function (i) { var v = parseInt(hex.substr(i, 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  var onFill = function (hex) { return lum(hex) > 0.35 ? '#0b0b0b' : '#ffffff'; };
+  var trunc = function (t, n) { return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+  var plural = function (n, a, b) { return n + ' ' + (n === 1 ? a : b); };
+
+  // ---------- tooltip: enhances, never gates (every value is also in the table view) ----------
+  var tip = document.getElementById('tip');
+  function showTip(node, x, y) {
+    var t = node.__tip; if (!t) return;
+    tip.textContent = '';
+    tip.appendChild(h('div', { class: 'tv' }, t.value));
+    tip.appendChild(h('div', { class: 'tt' }, t.title));
+    (t.rows || []).forEach(function (r) { var d = h('div', { class: 'tr' }); d.appendChild(h('span', null, r[0])); d.appendChild(h('b', null, r[1])); tip.appendChild(d); });
+    tip.style.display = 'block';
+    var w = tip.offsetWidth, hh = tip.offsetHeight;
+    tip.style.left = Math.min(x + 14, window.innerWidth - w - 8) + 'px';
+    tip.style.top = Math.min(y + 14, window.innerHeight - hh - 8) + 'px';
+  }
+  var hideTip = function () { tip.style.display = 'none'; };
+  function bindTip(node, title, value, rows) {
+    node.__tip = { title: title, value: String(value), rows: rows };
+    node.setAttribute('tabindex', '0');
+    node.addEventListener('pointermove', function (e) { showTip(node, e.clientX, e.clientY); });
+    node.addEventListener('pointerleave', hideTip);
+    node.addEventListener('focus', function () { var b = node.getBoundingClientRect(); showTip(node, b.left + b.width / 2, b.top); });
+    node.addEventListener('blur', hideTip);
+  }
+
+  // ---------- chart parts ----------
+  function barPath(x, y, w, hgt, r) { // square at the baseline, rounded data end
+    if (w <= r + 1) return 'M' + x + ',' + y + 'h' + Math.max(w, 1) + 'v' + hgt + 'h-' + Math.max(w, 1) + 'z';
+    return 'M' + x + ',' + y + 'h' + (w - r) + 'a' + r + ',' + r + ' 0 0 1 ' + r + ',' + r + 'v' + (hgt - 2 * r) + 'a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r + 'h-' + (w - r) + 'z';
+  }
+  function hbar(parent, data, aria) {
+    if (!data.length) { parent.appendChild(h('p', { class: 'note' }, 'Sem dados para os filtros atuais.')); return; }
+    var W = 620, labelW = 210, padR = 56, rowH = 28, barH = 16, top = 4;
+    var max = Math.max.apply(null, data.map(function (d) { return d.value; })) || 1;
+    var svg = s('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + (top + data.length * rowH + 4), role: 'img', 'aria-label': aria });
+    svg.appendChild(s('line', { x1: labelW, x2: labelW, y1: 0, y2: top + data.length * rowH, stroke: 'var(--axis)', 'stroke-width': 1 }));
+    data.forEach(function (d, i) {
+      var y = top + i * rowH, w = Math.max((W - labelW - padR) * d.value / max, 2);
+      var g = s('g', { class: 'mark' });
+      g.appendChild(s('rect', { class: 'hit', x: 0, y: y, width: W, height: rowH, rx: 6 }));
+      g.appendChild(s('text', { x: labelW - 10, y: y + barH / 2 + 8, 'text-anchor': 'end' }, trunc(d.label, 34)));
+      g.appendChild(s('path', { d: barPath(labelW, y + 6, w, barH, 4), fill: pal().series }));
+      g.appendChild(s('text', { class: 'val', x: labelW + w + 6, y: y + barH / 2 + 8 }, String(d.value)));
+      bindTip(g, d.label, d.value, d.rows || []);
+      svg.appendChild(g);
+    });
+    parent.appendChild(svg);
+  }
+  function stacked(parent, rows, aria) { // rows: [{label, seg:{critical,..}}]
+    if (!rows.length) { parent.appendChild(h('p', { class: 'note' }, 'Sem dados para os filtros atuais.')); return; }
+    var lg = h('div', { class: 'legend' });
+    SEV.forEach(function (k) { var sp = h('span'); var i = h('i'); i.style.background = pal().sev[k]; sp.appendChild(i); sp.appendChild(document.createTextNode(SEVPT[k])); lg.appendChild(sp); });
+    parent.appendChild(lg);
+    var W = 620, labelW = 210, padR = 56, rowH = 30, barH = 18, top = 4;
+    var totals = rows.map(function (r) { return SEV.reduce(function (a, k) { return a + r.seg[k]; }, 0); });
+    var max = Math.max.apply(null, totals) || 1, unit = (W - labelW - padR) / max;
+    var svg = s('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + (top + rows.length * rowH + 4), role: 'img', 'aria-label': aria });
+    svg.appendChild(s('line', { x1: labelW, x2: labelW, y1: 0, y2: top + rows.length * rowH, stroke: 'var(--axis)', 'stroke-width': 1 }));
+    rows.forEach(function (r, i) {
+      var y = top + i * rowH, x = labelW, g = s('g', { class: 'mark' });
+      g.appendChild(s('rect', { class: 'hit', x: 0, y: y, width: W, height: rowH, rx: 6 }));
+      g.appendChild(s('text', { x: labelW - 10, y: y + barH / 2 + 9, 'text-anchor': 'end' }, trunc(r.label, 34)));
+      var last = -1; SEV.forEach(function (k, j) { if (r.seg[k]) last = j; });
+      SEV.forEach(function (k, j) {
+        var n = r.seg[k]; if (!n) return;
+        var w = n * unit, drawW = Math.max(w - 2, 2), col = pal().sev[k];
+        g.appendChild(s('path', { d: j === last ? barPath(x, y + 6, drawW, barH, 4) : 'M' + x + ',' + (y + 6) + 'h' + drawW + 'v' + barH + 'h-' + drawW + 'z', fill: col }));
+        if (drawW >= 22) g.appendChild(s('text', { x: x + drawW / 2, y: y + barH / 2 + 10, 'text-anchor': 'middle', fill: onFill(col), style: 'fill:' + onFill(col) + ';font-size:11px' }, String(n)));
+        x += w;
+      });
+      g.appendChild(s('text', { class: 'val', x: x + 6, y: y + barH / 2 + 9 }, String(totals[i])));
+      bindTip(g, r.label, totals[i] + ' itens', SEV.map(function (k) { return [SEVPT[k], String(r.seg[k])]; }));
+      svg.appendChild(g);
+    });
+    parent.appendChild(svg);
+  }
+  function heatmap(parent, rows, aria) { // rows: [{label, seg}]
+    if (!rows.length) { parent.appendChild(h('p', { class: 'note' }, 'Sem dados para os filtros atuais.')); return; }
+    var labelW = 210, cw = 64, ch = 26, gap = 2, top = 22, W = labelW + SEV.length * (cw + gap) + 8;
+    var max = 1; rows.forEach(function (r) { SEV.forEach(function (k) { if (r.seg[k] > max) max = r.seg[k]; }); });
+    var ramp = pal().ramp, svg = s('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + (top + rows.length * (ch + gap) + 6), role: 'img', 'aria-label': aria });
+    SEV.forEach(function (k, j) { svg.appendChild(s('text', { class: 'mut', x: labelW + j * (cw + gap) + cw / 2, y: 14, 'text-anchor': 'middle' }, SEVPT[k])); });
+    rows.forEach(function (r, i) {
+      var y = top + i * (ch + gap), g = s('g', { class: 'mark' });
+      g.appendChild(s('rect', { class: 'hit', x: 0, y: y, width: W, height: ch, rx: 4 }));
+      g.appendChild(s('text', { x: labelW - 10, y: y + ch / 2 + 4, 'text-anchor': 'end' }, trunc(r.label, 34)));
+      SEV.forEach(function (k, j) {
+        var n = r.seg[k], x = labelW + j * (cw + gap);
+        if (!n) { g.appendChild(s('rect', { x: x, y: y, width: cw, height: ch, rx: 3, style: 'fill:var(--empty)' })); return; }
+        var col = ramp[Math.min(ramp.length - 1, Math.ceil(n / max * ramp.length) - 1)];
+        g.appendChild(s('rect', { x: x, y: y, width: cw, height: ch, rx: 3, fill: col }));
+        g.appendChild(s('text', { x: x + cw / 2, y: y + ch / 2 + 4, 'text-anchor': 'middle', style: 'fill:' + onFill(col) + ';font-size:12px' }, String(n)));
+      });
+      bindTip(g, r.label, SEV.reduce(function (a, k) { return a + r.seg[k]; }, 0) + ' itens', SEV.map(function (k) { return [SEVPT[k], String(r.seg[k])]; }));
+      svg.appendChild(g);
+    });
+    parent.appendChild(svg);
+    var lg = h('div', { class: 'legend' }); lg.style.marginTop = '8px';
+    lg.appendChild(h('span', null, 'menos'));
+    ramp.forEach(function (c) { var i = h('i'); i.style.background = c; lg.appendChild(i); });
+    lg.appendChild(h('span', null, 'mais (máx. ' + max + ')'));
+    parent.appendChild(lg);
+  }
+  function lineChart(parent, pts, aria) { // pts: [{x: label, y: n}]
+    var W = 620, H = 200, L = 40, R = 24, T = 14, B = 34;
+    var max = Math.max.apply(null, pts.map(function (p) { return p.y; })) || 1;
+    var svg = s('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': aria });
+    [0, 0.5, 1].forEach(function (f) { var y = T + (H - T - B) * (1 - f); svg.appendChild(s('line', { x1: L, x2: W - R, y1: y, y2: y, stroke: 'var(--grid)', 'stroke-width': 1 })); svg.appendChild(s('text', { class: 'mut', x: L - 6, y: y + 4, 'text-anchor': 'end' }, String(Math.round(max * f)))); });
+    var xs = function (i) { return pts.length === 1 ? (L + W - R) / 2 : L + (W - L - R) * i / (pts.length - 1); };
+    var ys = function (v) { return T + (H - T - B) * (1 - v / max); };
+    svg.appendChild(s('polyline', { points: pts.map(function (p, i) { return xs(i) + ',' + ys(p.y); }).join(' '), fill: 'none', stroke: pal().series, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    pts.forEach(function (p, i) {
+      var g = s('g', { class: 'mark' });
+      g.appendChild(s('circle', { class: 'hit', cx: xs(i), cy: ys(p.y), r: 14 }));
+      g.appendChild(s('circle', { cx: xs(i), cy: ys(p.y), r: 4, fill: pal().series, style: 'stroke:var(--surface);stroke-width:2' }));
+      if (i === 0 || i === pts.length - 1 || pts.length <= 6) g.appendChild(s('text', { class: 'mut', x: xs(i), y: H - 12, 'text-anchor': 'middle' }, p.x));
+      bindTip(g, 'Semana de ' + p.x, p.y + ' itens', []);
+      svg.appendChild(g);
+    });
+    parent.appendChild(svg);
+  }
+  function tableEl(headers, rows, numericCols) {
+    var t = h('table'), thead = h('thead'), tr = h('tr');
+    headers.forEach(function (x, i) { tr.appendChild(h('th', numericCols && numericCols.indexOf(i) >= 0 ? { class: 'n' } : null, x)); });
+    thead.appendChild(tr); t.appendChild(thead);
+    var tb = h('tbody');
+    rows.forEach(function (r) { var row = h('tr'); r.forEach(function (c, i) { row.appendChild(h('td', numericCols && numericCols.indexOf(i) >= 0 ? { class: 'n' } : null, String(c))); }); tb.appendChild(row); });
+    t.appendChild(tb); return t;
+  }
+  function card(title, sub, wide) {
+    var c = h('section', { class: 'card' + (wide ? ' wide' : '') });
+    c.appendChild(h('h2', null, title));
+    if (sub) c.appendChild(h('p', { class: 'cs' }, sub));
+    document.getElementById('cards').appendChild(c);
+    return c;
+  }
+  function twin(c, headers, rows, numericCols) { // table view: every chart has one
+    var d = h('details', { class: 'tbl' }); d.appendChild(h('summary', null, 'Ver tabela'));
+    d.appendChild(tableEl(headers, rows, numericCols)); c.appendChild(d);
+  }
+  function countCard(title, sub, counts, unitLabel, wide) {
+    var c = card(title, sub, wide), data = Object.keys(counts).map(function (k) { return { label: k, value: counts[k] }; }).sort(function (a, b) { return b.value - a.value || a.label.localeCompare(b.label); });
+    hbar(c, data.map(function (d) { return { label: d.label, value: d.value, rows: [[unitLabel, String(d.value)]] }; }), title);
+    twin(c, ['Grupo', unitLabel], data.map(function (d) { return [d.label, d.value]; }), [1]);
+    return c;
+  }
+
+  // ---------- filters ----------
+  var FILTERS = [
+    ['service', 'Serviço', function (r) { return r.service; }],
+    ['base', 'Release', function (r) { return r.base; }],
+    ['jira', 'Jira', function (r) { return r.jira; }],
+    ['severity', 'Severidade', function (r) { return r.severity; }, function (v) { return SEVPT[v] || v; }],
+    ['category', 'Categoria', function (r) { return r.category || 'sem-categoria'; }],
+    ['layer', 'Camada', function (r) { return r.layers.length ? r.layers : ['indefinida']; }],
+    ['scope', 'Escopo', function (r) { return r.scope; }, function (v) { return v === 'pr' ? 'Achados do PR' : 'Fora do escopo'; }],
+    ['status', 'Status', function (r) { return r.status || 'sem status'; }]
+  ];
+  function matches(r) {
+    return FILTERS.every(function (f) { var want = state[f[0]]; if (!want) return true; var v = f[2](r); return Array.isArray(v) ? v.indexOf(want) >= 0 : v === want; });
+  }
+  function buildFilters() {
+    var box = document.getElementById('filters'); box.textContent = '';
+    FILTERS.forEach(function (f) {
+      var vals = {}; D.rows.forEach(function (r) { [].concat(f[2](r)).forEach(function (v) { if (v) vals[v] = true; }); });
+      var sel = h('select'), lab = h('label', null, f[1]);
+      sel.appendChild(h('option', { value: '' }, 'Todos'));
+      Object.keys(vals).sort().forEach(function (v) { sel.appendChild(h('option', { value: v }, f[3] ? f[3](v) : v)); });
+      sel.value = state[f[0]];
+      sel.addEventListener('change', function () { state[f[0]] = sel.value; render(); });
+      lab.appendChild(sel); box.appendChild(lab);
+    });
+    var reset = h('button', { type: 'button' }, 'Limpar filtros');
+    reset.addEventListener('click', function () { Object.keys(state).forEach(function (k) { state[k] = ''; }); buildFilters(); render(); });
+    box.appendChild(reset);
+    box.appendChild(h('span', { class: 'count', id: 'count' }));
+  }
+
+  // ---------- render ----------
+  function render() {
+    var rows = D.rows.filter(matches), a = aggregate(rows);
+    var prSet = {}, jiraSet = {}; rows.forEach(function (r) { prSet[r.pr] = true; if (r.jira) jiraSet[r.jira] = true; });
+    var rels = D.relations.filter(function (r) { return (r.fromPr === null || prSet[r.fromPr]) && (r.toPr === null || prSet[r.toPr]) && (r.fromJira === null || jiraSet[r.fromJira]); });
+    var keyLabel = {}; D.rows.forEach(function (r) { keyLabel[r.key] = r.pr + ' ' + r.id; });
+    var prs = D.prs.filter(function (p) { return prSet[p.pr]; });
+    document.getElementById('count').textContent = rows.length + ' de ' + D.rows.length + ' itens';
+    document.getElementById('sub').textContent = plural(a.totals.prs, 'PR', 'PRs') + ' · ' + plural(a.totals.findings, 'achado', 'achados') + ' e ' + plural(a.totals.observations, 'observação fora do escopo', 'observações fora do escopo') + ' · gerado em ' + D.generated;
+
+    var k = document.getElementById('kpis'); k.textContent = '';
+    function tile(label, value, detail, hero) { var t = h('div', { class: 'tile' + (hero ? ' hero' : '') }); t.appendChild(h('div', { class: 'l' }, label)); t.appendChild(h('div', { class: 'v' }, String(value))); if (detail) t.appendChild(h('div', { class: 'd' }, detail)); k.appendChild(t); }
+    tile('Itens críticos ou altos', a.totals.criticalHigh, a.totals.critical + ' crítico(s), ' + a.totals.high + ' alto(s)', true);
+    tile('PRs', a.totals.prs, null);
+    tile('Itens', a.totals.items, a.totals.findings + ' achados · ' + a.totals.observations + ' fora do escopo');
+    tile('Decisões pendentes', a.totals.pendingDecisions, 'achados abertos ou mantidos');
+    tile('Achados em aberto', a.totals.openFindings, null);
+    tile('Relações confirmadas', rels.length, a.totals.unclassified ? a.totals.unclassified + ' item(ns) sem categoria' : null);
+
+    document.getElementById('cards').textContent = '';
+    // insights (optional)
+    var ic = card('Insights', D.insightsNote || 'Cada frase usa só números do facts.json.', true);
+    if (D.insights && D.insights.length) { var ul = h('ul', { class: 'ins' }); D.insights.forEach(function (t) { ul.appendChild(h('li', null, t)); }); ic.appendChild(ul); }
+    else ic.appendChild(h('p', { class: 'note' }, 'Insights em texto não gerados (opcional). O painel está completo só com os números.'));
+
+    var catCounts = a.byCategory;
+    countCard('Itens por categoria', 'Contagem de achados e observações', catCounts, 'itens');
+    var sc = card('Severidade por serviço', 'Itens empilhados por severidade');
+    var svcRows = Object.keys(a.sevByService).map(function (n) { return { label: n, seg: a.sevByService[n] }; }).sort(function (x, y) { return tot(y) - tot(x) || x.label.localeCompare(y.label); });
+    function tot(r) { return SEV.reduce(function (acc, q) { return acc + r.seg[q]; }, 0); }
+    stacked(sc, svcRows, 'Severidade por serviço');
+    twin(sc, ['Serviço'].concat(SEV.map(function (q) { return SEVPT[q]; })), svcRows.map(function (r) { return [r.label].concat(SEV.map(function (q) { return r.seg[q]; })); }), [1, 2, 3, 4]);
+
+    var hc = card('Categoria × severidade', 'Cada célula é a quantidade de itens');
+    var catRows = Object.keys(a.catBySev).map(function (n) { return { label: n, seg: a.catBySev[n] }; }).sort(function (x, y) { return tot(y) - tot(x) || x.label.localeCompare(y.label); });
+    heatmap(hc, catRows, 'Categoria por severidade');
+    twin(hc, ['Categoria'].concat(SEV.map(function (q) { return SEVPT[q]; })), catRows.map(function (r) { return [r.label].concat(SEV.map(function (q) { return r.seg[q]; })); }), [1, 2, 3, 4]);
+
+    countCard('Itens por camada', 'Um item pode tocar mais de uma camada, então a soma passa do total', a.byLayer, 'itens');
+    countCard('Estado dos itens', 'Achados do PR e observações fora do escopo', a.byStatus, 'itens');
+    countCard('Itens por release', 'Base branch do PR', a.byRelease, 'itens');
+
+    var pc = card('Decisões pendentes', 'Achados abertos ou mantidos do tipo decisão ou maybe-false', true);
+    var pend = rows.filter(function (r) { return a.pending.indexOf(r.key) >= 0; }).sort(function (x, y) { return SEV.indexOf(x.severity) - SEV.indexOf(y.severity); });
+    if (pend.length) pc.appendChild(tableEl(['PR', 'Id', 'Severidade', 'Categoria', 'Achado'], pend.map(function (r) { return [r.pr, r.id, SEVPT[r.severity], r.category || '-', r.title]; })));
+    else pc.appendChild(h('p', { class: 'note' }, 'Nenhuma decisão pendente nos filtros atuais.'));
+
+    var cc = card('Críticos e altos', 'Observações fora do escopo aparecem só por id: o texto fica nos reviews', true);
+    var ch = rows.filter(function (r) { return a.criticalHigh.indexOf(r.key) >= 0; }).sort(function (x, y) { return SEV.indexOf(x.severity) - SEV.indexOf(y.severity); });
+    if (ch.length) cc.appendChild(tableEl(['PR', 'Id', 'Severidade', 'Categoria', 'Status', 'Título'], ch.map(function (r) { return [r.pr, r.id, SEVPT[r.severity], r.category || '-', r.status || 'sem status', r.title || '(observação fora do escopo)']; })));
+    else cc.appendChild(h('p', { class: 'note' }, 'Nenhum item crítico ou alto nos filtros atuais.'));
+
+    var rc = card('Relações confirmadas', 'Confirmadas por você com a skill cr-links', true);
+    if (rels.length) rc.appendChild(tableEl(['Id', 'Tipo', 'De', 'Para', 'Parecer'], rels.map(function (r) {
+      var from = r.fromPr ? (keyLabel[r.fromKey] || r.fromPr) : r.fromJira, to = r.toPr ? (keyLabel[r.toKey] || r.toPr) : r.toJira;
+      return [r.id, r.type, from, to, r.verdict || '-'];
+    })));
+    else rc.appendChild(h('p', { class: 'note' }, 'Nenhuma relação confirmada nos filtros atuais.'));
+
+    // trends: only with enough PRs
+    var tc = card('Evolução por semana', 'Itens encontrados, por semana de criação do PR', true);
+    if (D.sample.trendsVisible) {
+      var weeks = {};
+      rows.forEach(function (r) { if (!r.prCreated) return; var d = new Date(r.prCreated + 'T00:00:00Z'), wd = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - wd); var key = d.toISOString().slice(0, 10); weeks[key] = (weeks[key] || 0) + 1; });
+      var pts = Object.keys(weeks).sort().map(function (w) { return { x: w, y: weeks[w] }; });
+      if (pts.length) { lineChart(tc, pts, 'Itens por semana'); twin(tc, ['Semana', 'Itens'], pts.map(function (p) { return [p.x, p.y]; }), [1]); } else tc.appendChild(h('p', { class: 'note' }, 'Sem datas de criação de PR para montar a série.'));
+    } else tc.appendChild(h('p', { class: 'note' }, 'Amostra pequena: ' + D.sample.prs + ' PR(s). A série temporal aparece a partir de ' + D.sample.minPrsForTrends + ' PRs (config: insights.minPrsForTrends).'));
+
+    var pe = card('Pessoas', 'Owner da US (reporter do Jira) e executor (autor do PR)', true);
+    if (D.sample.peopleVisible) {
+      var own = {}, exe = {}; prs.forEach(function (p) { if (p.owner) own[p.owner] = (own[p.owner] || 0) + 1; if (p.executor) exe[p.executor] = (exe[p.executor] || 0) + 1; });
+      pe.appendChild(h('p', { class: 'cs' }, 'PRs por owner'));
+      hbar(pe, Object.keys(own).map(function (n) { return { label: n, value: own[n], rows: [['PRs', String(own[n])]] }; }), 'PRs por owner');
+      pe.appendChild(h('p', { class: 'cs' }, 'PRs por executor'));
+      hbar(pe, Object.keys(exe).map(function (n) { return { label: n, value: exe[n], rows: [['PRs', String(exe[n])]] }; }), 'PRs por executor');
+    } else pe.appendChild(h('p', { class: 'note' }, 'Oculto: ' + D.sample.people + ' pessoa(s) no corpus; a visão por pessoa aparece com ' + D.sample.minPeopleForPersonViews + ' ou mais (config: insights.minPeopleForPersonViews). Contagens por pessoa só como agregado.'));
+
+    document.getElementById('foot').textContent = 'Dados internos: não compartilhe este arquivo sem revisar. Textos das observações fora do escopo não estão incluídos. Os números aqui e em facts.json vêm da mesma função de agregação.';
+  }
+
+  buildFilters();
+  render();
+  if (mq && mq.addEventListener) mq.addEventListener('change', render);
+})();
+</script>
+</body>
+</html>

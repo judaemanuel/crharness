@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fora do escopo — consolidado (crharness)</title>
+<style>
+:root{--bg:#fff;--fg:#1b1f24;--mut:#57606a;--line:#d0d7de;--card:#f6f8fa;--c:#a40e26;--h:#bc4c00;--m:#7d4e00;--l:#1a7f37;--accent:#0969da}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#8d96a0;--line:#30363d;--card:#161b22;--c:#ff7b72;--h:#ffa657;--m:#e3b341;--l:#56d364;--accent:#58a6ff}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:20px 24px;border-bottom:1px solid var(--line)}h1{margin:0 0 4px;font-size:20px}.sub{color:var(--mut)}
+.wrap{padding:16px 24px;max-width:1280px;margin:0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.chip,select,input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+.chip{cursor:pointer}.chip[aria-pressed=true]{border-color:var(--accent);outline:1px solid var(--accent)}
+input{min-width:240px}
+.kpis{display:flex;gap:10px;flex-wrap:wrap}.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 14px}.kpi b{font-size:20px;display:block}
+table{width:100%;border-collapse:collapse;margin-top:8px}th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--bg);font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
+.sev{font-weight:700;white-space:nowrap}.sev.critical{color:var(--c)}.sev.high{color:var(--h)}.sev.medium{color:var(--m)}.sev.low{color:var(--l)}
+.sev::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:currentColor;margin-right:6px}
+code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12.5px}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 8px;margin:1px 2px 1px 0;font-size:12px;color:var(--mut)}
+.small{font-size:12px;color:var(--mut)}button.cp{font:inherit;font-size:12px;cursor:pointer;background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:12px 0;color:var(--mut)}
+@media print{.bar,button.cp{display:none}th{position:static}}
+</style></head><body>
+<!--__NAV__-->
+<header><h1>Fora do escopo — consolidado</h1>
+<div class="sub">Problemas encontrados em código que os PRs <b>não</b> alteraram. Base para tickets e débitos técnicos. Gerado em <span id="gen"></span>.</div></header>
+<div class="wrap">
+<div class="kpis" id="kpis"></div>
+<div class="note">Estas observações nunca alteraram o veredito de um PR. Severidade vem da revisão. <b>Status vazio</b> = a rodada não registrava status. Dados pessoais, credenciais e nomes configurados em <code>reviews/_index/config.json</code> foram omitidos (‹…›); a fonte completa está no <code>review.md</code> indicado. A omissão é um filtro, não uma garantia: material interno, revise antes de compartilhar fora da equipe.</div>
+<div class="bar" id="sevbar"></div>
+<div class="bar">
+<select id="repo"><option value="">Todos os repos</option></select>
+<select id="cat"><option value="">Todas as categorias</option></select>
+<select id="st"><option value="">Qualquer status</option></select>
+<select id="jira"><option value="">Todos os Jira</option></select>
+<input id="q" placeholder="Buscar no texto, arquivo ou classe…" type="search">
+<span class="small" id="count"></span>
+</div>
+<table><thead><tr><th>Sev.</th><th>Observação</th><th>Origem</th><th>Categoria / camada</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D=JSON.parse(document.getElementById('data').textContent);const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
+$('gen').textContent=D.geradoEm;
+const SEV=['critical','high','medium','low'];let sevOn=new Set(SEV);
+const uniq=k=>[...new Set(D.itens.map(i=>i[k]).filter(Boolean))].sort();
+const fill=(id,vals)=>vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;$(id).appendChild(o)});
+fill('repo',uniq('repo'));fill('cat',uniq('categoria'));fill('st',uniq('status'));fill('jira',uniq('jira'));
+SEV.forEach(s=>{const n=D.itens.filter(i=>i.sev===s).length;const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed','true');b.innerHTML='<span class="sev '+s+'">'+s+'</span> '+n;b.onclick=()=>{sevOn.has(s)?sevOn.delete(s):sevOn.add(s);b.setAttribute('aria-pressed',sevOn.has(s));render()};$('sevbar').appendChild(b)});
+$('kpis').innerHTML='<div class="kpi"><b>'+D.total+'</b>observações</div>'+SEV.map(s=>'<div class="kpi"><b class="sev '+s+'">'+D.itens.filter(i=>i.sev===s).length+'</b>'+s+'</div>').join('');
+function ticketText(i){return '[Débito técnico · '+i.sev+'] '+i.texto.replace(/`/g,'')+'\nOrigem: '+i.origem+' ('+i.jira+') · '+i.id+' · rodada r'+i.rodada+'\nFonte: '+i.fonte+(i.relacionados.length?'\nRelacionados: '+i.relacionados.join('; '):'')}
+function render(){const q=$('q').value.toLowerCase();
+const L=D.itens.filter(i=>sevOn.has(i.sev)&&(!$('repo').value||i.repo===$('repo').value)&&(!$('cat').value||i.categoria===$('cat').value)&&(!$('st').value||i.status===$('st').value)&&(!$('jira').value||i.jira===$('jira').value)&&(!q||(i.texto+' '+i.origem+' '+i.categoria).toLowerCase().includes(q)));
+$('count').textContent=L.length+' de '+D.total;
+$('rows').innerHTML=L.map(i=>'<tr><td><span class="sev '+esc(i.sev)+'">'+esc(i.sev||'?')+'</span></td><td>'+md(i.texto)+(i.desfecho?'<div class="small">Depois da aprovação: '+md(i.desfecho)+'</div>':'')+(i.relacionados.length?'<div class="small">Mesma causa (confirmado): '+i.relacionados.map(esc).join(' · ')+'</div>':'')+'</td><td><b>'+esc(i.origem)+'</b> '+esc(i.id)+'<div class="small">'+esc(i.jira)+' · r'+i.rodada+(i.arquivado?' · arquivado':'')+'</div><div class="small">'+esc(i.fonte)+'</div></td><td>'+(i.categoria?'<span class="tag">'+esc(i.categoria)+'</span>':'')+i.camadas.map(c=>'<span class="tag">'+esc(c)+'</span>').join('')+'</td><td>'+esc(i.status||'—')+'</td><td><button class="cp" data-i="'+D.itens.indexOf(i)+'">Copiar p/ ticket</button></td></tr>').join('');
+document.querySelectorAll('.cp').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(ticketText(D.itens[b.dataset.i])).then(()=>{b.textContent='Copiado';setTimeout(()=>b.textContent='Copiar p/ ticket',1200)})})}
+['repo','cat','st','jira'].forEach(id=>$(id).onchange=render);$('q').oninput=render;render();
+</script></body></html>

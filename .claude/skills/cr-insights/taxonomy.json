@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "history": [{ "version": 1, "affectedCategories": [] }],
+  "note": "Primary category = the aspect the item is about (what would hurt). Pick exactly one primary, optionally one secondary. Use 'outro' only with a reason: it signals the taxonomy needs a new category. To change this file bump 'version' and list in 'history' the categories whose items must be re-classified.",
+  "categories": [
+    { "id": "segredo-credencial", "label": "Segredo ou credencial", "description": "Senha, token, chave ou credencial em código, configuração ou histórico do Git.", "linkCandidates": true },
+    { "id": "dado-sensivel-em-log", "label": "Dado sensível em log", "description": "PII, CPF, e-mail, JWT ou objeto com dados pessoais sendo logado.", "linkCandidates": true },
+    { "id": "seguranca-transporte-config", "label": "Segurança de transporte ou exposição", "description": "TLS/mTLS frouxo, certificado autoassinado, endpoints de gestão expostos, autorização." },
+    { "id": "tratamento-de-erro", "label": "Tratamento de erro", "description": "Exceção engolida, exceção sem mapeamento HTTP, falha convertida em resultado enganoso." },
+    { "id": "contrato-api", "label": "Contrato de API ou mensagem", "description": "Nome de campo, formato ou texto de erro divergente entre produtor, consumidor e spec." },
+    { "id": "feature-toggle-escopo", "label": "Feature toggle e escopo", "description": "Flag aplicada ou ausente onde não devia; comportamento fora do escopo da US por causa do toggle." },
+    { "id": "concorrencia-consistencia", "label": "Concorrência e consistência", "description": "Janela de duplicidade, falha parcial sem compensação, estado inconsistente entre sistemas, idempotência." },
+    { "id": "recursos-performance", "label": "Recursos e performance", "description": "Client ou contexto criado por chamada, timeout excessivo, vazamento de conexão, custo por requisição." },
+    { "id": "teste", "label": "Teste", "description": "Teste que não exercita o caminho real, mock que esconde comportamento, caso negativo ausente, fixture desalinhada." },
+    { "id": "observabilidade", "label": "Observabilidade", "description": "Padrão de log, prefixo, nível, rastreabilidade e diagnóstico (sem dado sensível: use dado-sensivel-em-log)." },
+    { "id": "aderencia-spec", "label": "Aderência à spec", "description": "Implementação diferente do que a US ou spec descreve (abordagem, texto, método)." },
+    { "id": "config-ambiente", "label": "Configuração e ambiente", "description": "Perfis, arquivos de configuração versionados, defaults e propriedades por ambiente." },
+    { "id": "qualidade-codigo", "label": "Qualidade de código", "description": "Comentário desatualizado, anotação sem efeito, código morto, nomenclatura enganosa." },
+    { "id": "outro", "label": "Outro", "description": "Não cabe em nenhuma acima; exige 'reason'." }
+  ]
+}

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pendências e potenciais tickets — crharness</title>
+<style>
+:root{--bg:#fff;--fg:#1b1f24;--mut:#57606a;--line:#d0d7de;--card:#f6f8fa;--c:#a40e26;--h:#bc4c00;--m:#7d4e00;--l:#1a7f37;--accent:#0969da}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#8d96a0;--line:#30363d;--card:#161b22;--c:#ff7b72;--h:#ffa657;--m:#e3b341;--l:#56d364;--accent:#58a6ff}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:20px 24px;border-bottom:1px solid var(--line)}h1{margin:0 0 4px;font-size:20px}.sub{color:var(--mut)}
+.wrap{padding:16px 24px;max-width:1180px;margin:0 auto}h2{font-size:16px;margin:22px 0 8px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.chip,select,input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+.chip{cursor:pointer}.chip[aria-pressed=true]{border-color:var(--accent);outline:1px solid var(--accent)}input{min-width:260px}
+.kpis{display:flex;gap:10px;flex-wrap:wrap}.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:96px}.kpi b{font-size:20px;display:block}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:12px 0;color:var(--mut)}.note b{color:var(--fg)}
+.sev{font-weight:700;white-space:nowrap}.sev.critical{color:var(--c)}.sev.high{color:var(--h)}.sev.medium{color:var(--m)}.sev.low{color:var(--l)}
+.sev::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:currentColor;margin-right:6px}
+code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12.5px}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 8px;margin:1px 3px 1px 0;font-size:12px;color:var(--mut)}
+.tag.rec{color:var(--fg);font-weight:600;border-color:var(--accent)}
+details.it{border:1px solid var(--line);border-radius:8px;margin:8px 0;background:var(--bg)}details.it>summary{cursor:pointer;padding:10px 12px;list-style:none}
+details.it>summary::-webkit-details-marker{display:none}details.it[open]>summary{border-bottom:1px solid var(--line);background:var(--card);border-radius:8px 8px 0 0}
+.sum1{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.title{font-weight:600}.sub2{color:var(--mut);font-size:12.5px;margin-top:2px}.small{font-size:12px;color:var(--mut)}
+.body{padding:12px 14px;display:grid;grid-template-columns:150px 1fr;gap:6px 14px}.body dt{color:var(--mut);font-size:12.5px}.body dd{margin:0}
+ul.l{margin:0;padding-left:18px}.g{border:1px dashed var(--line);border-radius:8px;padding:8px 12px;margin:6px 0}
+button.cp{font:inherit;font-size:12px;cursor:pointer;background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:3px 10px;margin-top:8px}
+@media print{.bar,button.cp{display:none}details.it{break-inside:avoid}}
+</style></head><body>
+<!--__NAV__-->
+<header><h1>Pendências e potenciais tickets</h1>
+<div class="sub">Tudo o que as revisões encontraram e <b>não foi corrigido</b> (dentro ou fora do escopo dos PRs). Gerado em <span id="gen"></span>.</div></header>
+<div class="wrap">
+<div class="kpis" id="kpis"></div>
+<div class="note"><b>Como ler.</b> Cada item é um candidato, não uma decisão. O conteúdo do problema vem das revisões (fato verificado ou hipótese, como indicado); o <b>tipo</b>, os <b>argumentos a favor e contra</b> e a <b>recomendação</b> são julgamento assistido por modelo, revisável por quem decide. <b>Situação</b>: <i>PR encerrado sem correção</i> (finding do diff que seguiu como estava), <i>PR aberto</i> (ainda pode ser corrigido antes do merge), <i>rejeitado/aceito pelo revisor</i> (decisão humana, mantida aqui só para reavaliação), <i>persiste no código-base</i> (fora do escopo do PR). Itens corrigidos ou obsoletos <b>não</b> aparecem. Pessoas, CPF, tokens, e-mails e os termos configurados em <code>reviews/_index/config.json</code> foram omitidos (‹…›). A omissão é um filtro, não uma garantia: material interno, revise antes de compartilhar fora da equipe.</div>
+<h2>Agrupamentos sugeridos (causa comum confirmada)</h2><div id="groups"></div>
+<h2>Itens</h2>
+<div class="bar" id="sevbar"></div>
+<div class="bar">
+<select id="tipo"><option value="">Todos os tipos</option></select>
+<select id="rec"><option value="">Qualquer recomendação</option></select>
+<select id="sit"><option value="">Qualquer situação</option></select>
+<select id="repo"><option value="">Todos os repos</option></select>
+<select id="cat"><option value="">Todas as categorias</option></select>
+<select id="jira"><option value="">Todos os Jira</option></select>
+<select id="evid"><option value="">Qualquer evidência</option></select>
+<select id="esc"><option value="">Dentro e fora do escopo</option></select>
+<input id="q" type="search" placeholder="Buscar em qualquer texto…"><span class="small" id="count"></span>
+<button class="chip" id="exp">Expandir/recolher tudo</button>
+</div>
+<div id="list"></div>
+</div>
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D=JSON.parse(document.getElementById('data').textContent);const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
+const L={tipo:{vulnerabilidade:'Vulnerabilidade','correcao-necessaria':'Correção necessária','debito-tecnico':'Débito técnico','ma-pratica':'Má prática','decisao-de-negocio':'Decisão de negócio','nao-analisado':'Aguardando análise'},
+rec:{abrir:'Abrir ticket','abrir-agrupado':'Abrir agrupado','decidir-com-PO':'Decidir com PO',monitorar:'Monitorar','nao-abrir':'Não abrir','nao-analisado':'Aguardando análise'},
+sit:{'pr-encerrado-sem-correcao':'PR encerrado, sem correção','pr-aberto-pode-corrigir':'PR aberto (pode corrigir)','rejeitado-pelo-usuario':'Rejeitado pelo revisor','aceito-pelo-usuario':'Aceito pelo revisor',indeterminado:'Indeterminado','persiste-no-codigo-base':'Persiste no código-base'},
+evid:{'fato-verificado':'Fato verificado',hipotese:'Hipótese',misto:'Misto','nao-analisado':'—'}};
+const lab=(m,k)=>(L[m]&&L[m][k])||k;
+$('gen').textContent=D.geradoEm;
+const SEV=['critical','high','medium','low'];let sevOn=new Set(SEV);
+const uniq=f=>[...new Set(D.itens.map(f).filter(Boolean))].sort();
+function fill(id,vals,m){vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=m?lab(m,v):v;$(id).appendChild(o)})}
+fill('tipo',uniq(i=>i.issueType),'tipo');fill('rec',uniq(i=>i.recomendacao),'rec');fill('sit',uniq(i=>i.situacao),'sit');fill('repo',uniq(i=>i.repo));fill('cat',uniq(i=>i.categoria));fill('jira',uniq(i=>i.jira));fill('evid',uniq(i=>i.evidencia),'evid');fill('esc',uniq(i=>i.escopo));
+SEV.forEach(s=>{const n=D.itens.filter(i=>i.sev===s).length;const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed','true');b.innerHTML='<span class="sev '+s+'">'+s+'</span> '+n;b.onclick=()=>{sevOn.has(s)?sevOn.delete(s):sevOn.add(s);b.setAttribute('aria-pressed',sevOn.has(s));render()};$('sevbar').appendChild(b)});
+const cnt=(f)=>D.itens.filter(f).length;
+$('kpis').innerHTML=[['itens',D.total],['critical/high',cnt(i=>i.sev==='critical'||i.sev==='high')],['vulnerabilidades',cnt(i=>i.issueType==='vulnerabilidade')],['fora do escopo',cnt(i=>i.escopo==='fora do escopo')],['recomendado abrir',cnt(i=>i.recomendacao==='abrir'||i.recomendacao==='abrir-agrupado')],['decidir com PO',cnt(i=>i.recomendacao==='decidir-com-PO')],['sem análise atual',cnt(i=>i.analise!=='ok')],['agrupamentos',D.grupos.length]].map(([t,n])=>'<div class="kpi"><b>'+n+'</b>'+t+'</div>').join('');
+$('groups').innerHTML=D.grupos.length?D.grupos.map(g=>'<div class="g"><b>'+g.id+'</b> — '+g.membros.map(esc).join(' · ')+'<div class="small">Mesma causa confirmada: um ticket pode cobrir todos.</div></div>').join(''):'<div class="sub">Nenhum.</div>';
+function ticketText(i){const a=i.analise!=='pendente';return '['+(a?lab('tipo',i.issueType)+' · ':'')+i.sev+'] '+i.resumo+(a?'\n\nDetalhe: '+i.detalhe+'\nImpacto: '+i.impacto+'\nEvidência: '+lab('evid',i.evidencia)+' — '+i.evidenciaNota+'\nAção sugerida: '+i.acao:'')+'\nOrigem: '+i.origem+' '+i.id+' ('+i.jira+') · '+i.fonte+(i.grupo?'\nAgrupamento: '+i.grupo:'')+(i.pendencias?'\nPendências: '+i.pendencias:'')}
+function card(i,n){const o=i.originais||{};const orig=Object.entries(o).map(([k,v])=>'<div><b>'+esc(k)+':</b> '+md(v)+'</div>').join('');const has=i.analise!=='pendente';
+const tags='<span class="tag">'+lab('tipo',i.issueType)+'</span><span class="tag rec">'+lab('rec',i.recomendacao)+'</span><span class="tag">'+lab('sit',i.situacao)+'</span>'+(has?'<span class="tag">'+lab('evid',i.evidencia)+'</span>':'')+(i.analise==='desatualizada'?'<span class="tag">análise desatualizada</span>':'')+(i.grupo?'<span class="tag">'+i.grupo+'</span>':'');
+return '<details class="it"><summary><div class="sum1"><span class="sev '+esc(i.sev)+'">'+esc(i.sev||'?')+'</span><span class="title">'+esc(i.resumo)+'</span></div><div class="sub2"><b>'+esc(i.origem)+'</b> '+esc(i.id)+' · '+esc(i.jira)+' · '+tags+'</div></summary>'
++'<dl class="body">'+(has?'<dt>Entendimento</dt><dd>'+md(i.detalhe)+'</dd><dt>Impacto</dt><dd>'+md(i.impacto)+'</dd><dt>Evidência</dt><dd><b>'+lab('evid',i.evidencia)+'.</b> '+md(i.evidenciaNota)+'</dd>'
++'<dt>A favor de abrir</dt><dd><ul class="l">'+i.abrir.map(x=>'<li>'+md(x)+'</li>').join('')+'</ul></dd><dt>Contra / ressalvas</dt><dd><ul class="l">'+i.naoAbrir.map(x=>'<li>'+md(x)+'</li>').join('')+'</ul></dd>'
++'<dt>Recomendação</dt><dd><b>'+lab('rec',i.recomendacao)+'</b> — '+md(i.recomendacaoMotivo)+'</dd><dt>Ação sugerida</dt><dd>'+md(i.acao)+'</dd><dt>Quem decide</dt><dd>'+md(i.quemDecide)+'</dd>'+(i.pendencias?'<dt>O que falta saber</dt><dd>'+md(i.pendencias)+'</dd>':''):'<dt>Análise</dt><dd>Ainda não analisada. Peça ao Claude: “rode o modo pendencias da skill cr-insights”.</dd>')
++'<dt>Classificação</dt><dd>'+(i.categoria?'<span class="tag">'+esc(i.categoria)+'</span>':'')+(i.secundaria?'<span class="tag">'+esc(i.secundaria)+'</span>':'')+'<span class="tag">'+esc(i.escopo)+'</span>'+(i.escopo!=='fora do escopo'?'<span class="tag">revisão: '+esc(i.tipoRevisao)+'</span>':'')+(i.statusRevisao?'<span class="tag">status: '+esc(i.statusRevisao)+'</span>':'')+'</dd>'
++(i.desfecho?'<dt>Depois da aprovação</dt><dd>'+md(i.desfecho)+(i.evidenciaDesfecho?'<div class="sub2">'+md(i.evidenciaDesfecho)+'</div>':'')+'</dd>':'')+(i.decisaoUsuario?'<dt>Decisão do revisor</dt><dd>'+md(i.decisaoUsuario)+'</dd>':'')
++'<dt>Texto da revisão</dt><dd>'+orig+'</dd><dt>Veredito do PR</dt><dd>'+md(i.veredictoPR)+'</dd><dt>Fonte</dt><dd><code>'+esc(i.fonte)+'</code> · PR '+esc(i.estadoPR)+'</dd></dl>'
++'<div style="padding:0 14px 12px"><button class="cp" data-i="'+n+'">Copiar p/ ticket</button></div></details>'}
+let allOpen=false;
+function render(){const q=$('q').value.toLowerCase();
+const F=D.itens.map((x,n)=>[x,n]).filter(([i])=>sevOn.has(i.sev)&&(!$('tipo').value||i.issueType===$('tipo').value)&&(!$('rec').value||i.recomendacao===$('rec').value)&&(!$('sit').value||i.situacao===$('sit').value)&&(!$('repo').value||i.repo===$('repo').value)&&(!$('cat').value||i.categoria===$('cat').value)&&(!$('jira').value||i.jira===$('jira').value)&&(!$('evid').value||i.evidencia===$('evid').value)&&(!$('esc').value||i.escopo===$('esc').value)&&(!q||JSON.stringify(i).toLowerCase().includes(q)));
+$('count').textContent=F.length+' de '+D.total;
+$('list').innerHTML=F.map(([i,n])=>card(i,n)).join('');
+if(allOpen)document.querySelectorAll('details.it').forEach(d=>d.open=true);
+document.querySelectorAll('.cp').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(ticketText(D.itens[b.dataset.i])).then(()=>{b.textContent='Copiado';setTimeout(()=>b.textContent='Copiar p/ ticket',1200)})})}
+['tipo','rec','sit','repo','cat','jira','evid','esc'].forEach(id=>$(id).onchange=render);$('q').oninput=render;
+$('exp').onclick=()=>{allOpen=!allOpen;document.querySelectorAll('details.it').forEach(d=>d.open=allOpen)};render();
+</script></body></html>

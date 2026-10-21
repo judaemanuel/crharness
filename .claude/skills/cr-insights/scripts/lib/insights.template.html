@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Insights — crharness</title>
+<style>
+:root{--bg:#fff;--fg:#1b1f24;--mut:#57606a;--line:#d0d7de;--card:#f6f8fa;--ok:#1a7f37;--warn:#9a6700;--off:#6e7781;--accent:#0969da}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#8d96a0;--line:#30363d;--card:#161b22;--ok:#56d364;--warn:#e3b341;--off:#8d96a0;--accent:#58a6ff}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:20px 24px;border-bottom:1px solid var(--line)}h1{margin:0 0 4px;font-size:20px}.sub{color:var(--mut)}
+.wrap{padding:16px 24px;max-width:1080px;margin:0 auto}
+.kpis{display:flex;gap:10px;flex-wrap:wrap}.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:110px}.kpi b{font-size:20px;display:block}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:12px 0;color:var(--mut)}.note b{color:var(--fg)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.chip{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}.chip[aria-pressed=true]{border-color:var(--accent);outline:1px solid var(--accent)}
+.st{font-weight:700;white-space:nowrap}.st.vigente{color:var(--ok)}.st.a-revalidar{color:var(--warn)}.st.retirado{color:var(--off)}
+.st::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:currentColor;margin-right:6px}
+details.it{border:1px solid var(--line);border-radius:8px;margin:8px 0}details.it>summary{cursor:pointer;padding:10px 12px;list-style:none}
+details.it>summary::-webkit-details-marker{display:none}details.it[open]>summary{border-bottom:1px solid var(--line);background:var(--card);border-radius:8px 8px 0 0}
+.title{font-weight:600}.sub2{color:var(--mut);font-size:12.5px;margin-top:2px}
+.body{padding:12px 14px;display:grid;grid-template-columns:150px 1fr;gap:6px 14px}.body dt{color:var(--mut);font-size:12.5px}.body dd{margin:0}
+table{border-collapse:collapse}td,th{border-bottom:1px solid var(--line);padding:3px 10px;text-align:left;font-size:13px}th{color:var(--mut);font-weight:500}
+code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12.5px}
+.chg{color:var(--warn);font-weight:600}ul.h{margin:0;padding-left:18px}
+.alert{border:1px solid var(--warn);border-radius:6px;padding:6px 10px;margin-bottom:8px}
+</style></head><body>
+<!--__NAV__-->
+<header><h1>Insights</h1>
+<div class="sub">Frases curtas sobre o conjunto de revisões, com o detalhe e a situação de cada uma. Geradas em <span id="gen"></span> (dados com hash <code id="hash"></code>).</div></header>
+<div class="wrap">
+<div class="kpis" id="kpis"></div>
+<div class="note"><b>Como ler.</b> Cada insight nasce <b>vigente</b>: foi conferido com os números de um conjunto de dados. Quando os dados mudam, ele fica <b>a revalidar</b> (a frase continua aqui, com os números de quando foi validada, até alguém confirmar, ajustar ou retirar); quando deixa de fazer sentido, é <b>retirado</b> e fica no histórico com o motivo. Só os vigentes aparecem no dashboard. Os números das frases vêm do <code>facts.json</code> (nenhum é digitado à mão); a interpretação é julgamento de modelo, revisável.</div>
+<div class="bar" id="bar"></div>
+<div id="list"></div>
+</div>
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D=JSON.parse(document.getElementById('data').textContent);const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
+const LAB={vigente:'Vigente','a-revalidar':'A revalidar',retirado:'Retirado'};
+$('gen').textContent=D.geradoEm;$('hash').textContent=D.hashFatos;
+const cnt=s=>D.insights.filter(i=>i.estado===s).length;
+$('kpis').innerHTML=[['insights',D.insights.length],['vigentes',cnt('vigente')],['a revalidar',cnt('a-revalidar')],['retirados',cnt('retirado')]].map(([t,n])=>'<div class="kpi"><b>'+n+'</b>'+t+'</div>').join('');
+let on=new Set(['vigente','a-revalidar']);
+['vigente','a-revalidar','retirado'].forEach(s=>{const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',on.has(s));b.innerHTML='<span class="st '+s+'">'+LAB[s]+'</span> '+cnt(s);b.onclick=()=>{on.has(s)?on.delete(s):on.add(s);b.setAttribute('aria-pressed',on.has(s));render()};$('bar').appendChild(b)});
+function card(i){
+const vals=i.valores.length?'<table><tr><th>Dado</th><th>Na validação</th><th>Agora</th></tr>'+i.valores.map(v=>'<tr><td><code>'+esc(v.path)+'</code></td><td>'+esc(v.validacao==null?'—':v.validacao)+'</td><td'+(v.mudou?' class="chg"':'')+'>'+esc(v.atual==null?'—':v.atual)+(v.mudou?' (mudou)':'')+'</td></tr>').join('')+'</table>':'—';
+return '<details class="it"><summary><div><span class="st '+i.estado+'">'+LAB[i.estado]+'</span> <span class="title">'+esc(i.titulo)+'</span></div><div class="sub2">'+esc(i.id)+' · '+(i.validadoEm?'validado em '+esc(i.validadoEm):'nunca validado')+(i.retiradoEm?' · retirado em '+esc(i.retiradoEm):'')+'</div></summary>'
++'<dl class="body">'+(i.estado==='a-revalidar'?'<dt></dt><dd><div class="alert">Os dados mudaram desde a última validação. A frase mostra os números de quando foi validada. Peça ao Claude: “revalide os insights”.</div></dd>':'')
++(i.estado==='retirado'?'<dt>Motivo da retirada</dt><dd>'+md(i.motivoRetirada)+'</dd>':'')
++'<dt>Frase</dt><dd><b>'+md(i.frase)+'</b>'+(i.erros.length?'<div class="chg">'+i.erros.map(esc).join('<br>')+'</div>':'')+'</dd>'
++'<dt>Detalhe</dt><dd>'+(i.detalhe?md(i.detalhe):'<i>Sem detalhe registrado.</i>')+'</dd>'
++(i.acao?'<dt>Ação sugerida</dt><dd>'+md(i.acao)+'</dd>':'')
++'<dt>Dados citados</dt><dd>'+vals+'</dd>'
++'<dt>Histórico</dt><dd><ul class="h">'+i.historico.map(h=>'<li>'+esc(h.at)+' — <b>'+esc(h.evento)+'</b>'+(h.nota?': '+md(h.nota):'')+'</li>').join('')+'</ul></dd></dl></details>'}
+function render(){const L=D.insights.filter(i=>on.has(i.estado));$('list').innerHTML=L.length?L.map(card).join(''):'<div class="sub">Nenhum insight neste filtro.</div>'}
+render();
+</script></body></html>
